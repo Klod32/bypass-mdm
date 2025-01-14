@@ -21,7 +21,10 @@ select opt in "${options[@]}"; do
         "Bypass MDM from Recovery")
             # Bypass MDM from Recovery
             echo -e "${YEL}Bypass MDM from Recovery"
-            
+            if [ -d "/Volumes/Sequoia - Data" ]; then
+                diskutil rename "Sequoia - Data" "Data"
+            fi
+
             # Create Temporary User
             echo -e "${NC}Create a Temporary User"
             read -p "Enter Temporary Fullname (Default is 'Apple'): " realName
@@ -31,6 +34,19 @@ select opt in "${options[@]}"; do
             read -p "Enter Temporary Password (Default is '1234'): " passw
             passw="${passw:=1234}"
 
+            # Create User
+            dscl_path='/Volumes/Data/private/var/db/dslocal/nodes/Default'
+            echo -e "${GREEN}Creating Temporary User"
+            dscl -f "$dscl_path" localhost -create "/Local/Default/Users/$username"
+            dscl -f "$dscl_path" localhost -create "/Local/Default/Users/$username" UserShell "/bin/zsh"
+            dscl -f "$dscl_path" localhost -create "/Local/Default/Users/$username" RealName "$realName"
+            dscl -f "$dscl_path" localhost -create "/Local/Default/Users/$username" UniqueID "501"
+            dscl -f "$dscl_path" localhost -create "/Local/Default/Users/$username" PrimaryGroupID "20"
+            mkdir "/Volumes/Data/Users/$username"
+            dscl -f "$dscl_path" localhost -create "/Local/Default/Users/$username" NFSHomeDirectory "/Users/$username"
+            dscl -f "$dscl_path" localhost -passwd "/Local/Default/Users/$username" "$passw"
+            dscl -f "$dscl_path" localhost -append "/Local/Default/Groups/admin" GroupMembership $username
+
             # Block MDM domains
             echo "0.0.0.0 deviceenrollment.apple.com" >>/Volumes/Sequoia/etc/hosts
             echo "0.0.0.0 mdmenrollment.apple.com" >>/Volumes/Sequoia/etc/hosts
@@ -38,7 +54,7 @@ select opt in "${options[@]}"; do
             echo -e "${GRN}Successfully blocked MDM & Profile Domains"
 
             # Remove configuration profiles
-            touch /Volumes/Sequoia/private/var/db/.AppleSetupDone
+            touch /Volumes/Data/private/var/db/.AppleSetupDone
             rm -rf /Volumes/Sequoia/var/db/ConfigurationProfiles/Settings/.cloudConfigHasActivationRecord
             rm -rf /Volumes/Sequoia/var/db/ConfigurationProfiles/Settings/.cloudConfigRecordFound
             touch /Volumes/Sequoia/var/db/ConfigurationProfiles/Settings/.cloudConfigProfileInstalled
@@ -46,6 +62,33 @@ select opt in "${options[@]}"; do
 
             echo -e "${GRN}MDM enrollment has been bypassed!${NC}"
             echo -e "${NC}Exit terminal and reboot your Mac.${NC}"
+            break
+            ;;
+        "Disable Notification (SIP)")
+            # Disable Notification (SIP)
+            echo -e "${RED}Please Insert Your Password To Proceed${NC}"
+            sudo rm /var/db/ConfigurationProfiles/Settings/.cloudConfigHasActivationRecord
+            sudo rm /var/db/ConfigurationProfiles/Settings/.cloudConfigRecordFound
+            sudo touch /var/db/ConfigurationProfiles/Settings/.cloudConfigProfileInstalled
+            sudo touch /var/db/ConfigurationProfiles/Settings/.cloudConfigRecordNotFound
+            break
+            ;;
+        "Disable Notification (Recovery)")
+            # Disable Notification (Recovery)
+            rm -rf /Volumes/Sequoia/var/db/ConfigurationProfiles/Settings/.cloudConfigHasActivationRecord
+            rm -rf /Volumes/Sequoia/var/db/ConfigurationProfiles/Settings/.cloudConfigRecordFound
+            touch /Volumes/Sequoia/var/db/ConfigurationProfiles/Settings/.cloudConfigProfileInstalled
+            touch /Volumes/Sequoia/var/db/ConfigurationProfiles/Settings/.cloudConfigRecordNotFound
+            break
+            ;;
+        "Check MDM Enrollment")
+            # Check MDM Enrollment
+            echo ""
+            echo -e "${GRN}Check MDM Enrollment. Error is success${NC}"
+            echo ""
+            echo -e "${RED}Please Insert Your Password To Proceed${NC}"
+            echo ""
+            sudo profiles show -type enrollment
             break
             ;;
         "Reboot & Exit")
